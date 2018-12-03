@@ -1,0 +1,481 @@
+Problems 153 and 248 from projecteuler.net
+
+PROBLEM 153: FINDING GAUSSIAN NUMBER
+FOR THIS PROBLEM: Uses algorithm to generate pairs of (m,n) where m,n <= 10^4 such that (m,n) are relatively prime, then use these pairs to solve the problem 
+
+Option Explicit
+Const k As Long = 10 ^ 4, r As Long = 10 ^ 8
+Dim x(k, k) As Long, p(1229) As Long, y(k, 11) As Long, sFree(k) As Boolean, totient(k) As Long, sorter(1000, 10) As Long
+Sub problem153() 'Answer is 17971254122360635 solved in 67.679 s ... 
+Dim left3 As Long, xmn As Long, prMNvalF As Double, m As Long, n As Long, upperN As Long, stimer As Single, count As Double, valF As Double, sumMN As Long, scount As String
+stimer = Timer
+Call genRelPrime
+count = 0
+left3 = 0
+For m = 2 To k
+upperN = x(m, 0)
+For n = 1 To upperN
+xmn = x(m, n)
+sumMN = xmn + m
+valF = f(Int(r / (m ^ 2 + xmn ^ 2)))
+prMNvalF = sumMN * valF
+count = count + prMNvalF
+left3 = left3 + (prMNvalF - Int(prMNvalF / 1000) * 1000)
+Next
+left3 = left3 - Int(left3 / 1000) * 1000
+Next
+count = count * 2
+left3 = left3 * 2
+left3 = left3 - Int(left3 / 1000) * 1000
+count = Int(count / 1000)
+scount = strSum(highCasesSum(), count & left3) 'need to get f(10^8/2) and f(10^8) explicitly. they don't evaluate otherwise.
+Debug.Print scount
+Debug.Print Timer - stimer
+Stop
+End
+End Sub
+Function highCasesSum() As String
+'case 10^8 and double case 10^8/2
+Dim term As Long, i As Long, num As Long
+For num = 50000000 To 100000000 Step 50000000
+term = Int(Sqr(num))
+For i = 1 To term
+highCasesSum = strSum(highCasesSum, Trim(Int(num / i) * i))
+Next
+term = term - 1
+For i = 1 To term
+highCasesSum = strSum(highCasesSum, strSumTo(Int(num / i)))
+Next
+highCasesSum = strSubtract(highCasesSum, strMult(sumTo(Int(num / (term + 1))), Trim(term)))
+If num = 50000000 Then highCasesSum = strMult(highCasesSum, "2")
+Next
+End Function
+
+
+
+Sub genRelPrime()
+Dim temp As Long, i As Long, j As Long, upperJ As Long, jj As Long, jjj As Long, phi As Long, ipr As Long, _
+pr As Long, m As Long, inv As Long, j_j As Long, jjBeg As Long, jjEnd As Long, intij10 As Long
+x(1, 0) = 1
+x(1, 1) = 1
+p(0) = 1
+p(1) = 2
+For i = 1 To k: totient(i) = 1: Next
+For i = 3 To k Step 2
+j = 1
+While p(j) ^ 2 <= i
+If i / p(j) = Int(i / p(j)) Then GoTo notPrime
+j = j + 1
+Wend
+p(0) = p(0) + 1
+p(p(0)) = i
+notPrime:
+Next
+For i = 1 To p(0)
+upperJ = Int(k / p(i)) * p(i)
+For j = p(i) To upperJ Step p(i)
+y(j, 0) = y(j, 0) + 1
+y(j, y(j, 0)) = p(i)
+If j / (p(i) ^ 2) = Int(j / (p(i) ^ 2)) Then
+y(j, y(j, 0) + 5) = y(j / p(i), y(j / p(i), 0) + 5) + 1
+Else
+y(j, y(j, 0) + 5) = 1
+End If
+If y(j, y(j, 0) + 5) > 1 Then y(j, 11) = p(i)
+totient(j) = totient(j) * (p(i) - 1)
+totient(j) = totient(j) * p(i) ^ (y(j, y(j, 0) + 5) - 1)
+Next
+Next
+Call recurs
+
+'need to deal with square free cases as well as ones that are products of square-free
+For i = 2 To k
+Select Case sFree(i)
+Case False
+m = y(i, 11)
+phi = x(i / m, 0)
+For jj = 1 To m
+For j = 1 To phi
+x(i, 0) = x(i, 0) + 1
+x(i, x(i, 0)) = x(i / m, j) + (jj - 1) * i / m
+Next
+Next
+Case True
+pr = y(i, y(i, 0))
+ipr = i / pr
+inv = modINV(ipr - Int(ipr / pr) * pr, pr)
+'find the inverse of the equation:
+'x(i/m,j) + jj * m = 0 mod p, 0 <= jj < p
+'(-x(i/m,j))*inv
+upperJ = x(ipr, 0)
+For j = 1 To upperJ
+j_j = (-x(ipr, j)) * inv
+j_j = j_j - Int(j_j / pr) * pr
+
+jjEnd = j_j - 1
+For jj = 0 To jjEnd
+x(i, 0) = x(i, 0) + 1
+x(i, j + jj * x(ipr, 0)) = x(ipr, j) + jj * ipr
+Next
+jjBeg = j_j + 1: jjEnd = pr - 1
+For jj = jjBeg To jjEnd
+x(i, 0) = x(i, 0) + 1
+x(i, j + (jj - 1) * x(ipr, 0)) = x(ipr, j) + jj * ipr
+Next
+Next
+
+If y(i, 0) > 1 Then
+For j = 0 To 1000
+sorter(j, 0) = 0
+Next
+upperJ = x(i, 0)
+For j = 1 To upperJ
+intij10 = Int(x(i, j) / 10)
+sorter(intij10, 0) = sorter(intij10, 0) + 1
+sorter(intij10, sorter(intij10, 0)) = x(i, j)
+Next
+upperJ = 0
+For j = 0 To 999
+For jj = 1 To sorter(j, 0)
+For jjj = jj + 1 To sorter(j, 0)
+If sorter(j, jj) > sorter(j, jjj) Then
+temp = sorter(j, jj)
+sorter(j, jj) = sorter(j, jjj)
+sorter(j, jjj) = temp
+End If
+Next
+Next
+For jj = 1 To sorter(j, 0)
+upperJ = upperJ + 1
+x(i, upperJ) = sorter(j, jj)
+Next
+Next
+
+End If
+End Select
+Next
+End Sub
+
+Sub recurs(Optional index As Integer = 1, Optional product As Long = 1, Optional lastP As Long = 2)
+Dim i As Long
+For i = index To p(0)
+If product * p(i) > k Then Exit For
+Call recurs(i + 1, product * p(i), p(i))
+Next
+sFree(product) = True
+End Sub
+Function modINV(pr As Long, m As Long) As Long ' pr^tot(m)-1 * pr = 1 mod m
+Dim xx As Long, power As Long, dig As Byte
+xx = totient(m) - 1
+power = pr
+modINV = 1
+While xx > 0
+dig = xx - 2 * Int(xx / 2)
+xx = Int(xx / 2)
+If dig = 1 Then
+modINV = modINV * power
+modINV = modINV - Int(modINV / m) * m
+End If
+power = power ^ 2
+power = power - Int(power / m) * m
+Wend
+End Function
+
+Function f(num As Long) As Double
+Dim term As Long, i As Long
+'if sqr(num) - int(Sqr(num)) > .40
+If num = 0 Then Exit Function
+term = Int(Sqr(num))
+If term = Int(num / term) Then
+For i = 1 To term
+f = f + Int(num / i) * i
+Next
+term = term - 1
+For i = 1 To term
+f = f + sumTo(Int(num / i))
+Next
+f = f - sumTo(Int(num / (term + 1))) * term
+Else
+For i = 1 To term
+f = f + Int(num / i) * i
+f = f + sumTo(Int(num / i))
+Next
+f = f - sumTo(Int(num / (term + 1))) * term
+End If
+'kk = 12: for i = 1 to 10: ? i;int(kk/i): next
+
+End Function
+
+Function sumTo(n As Double) As Double
+sumTo = n * (n + 1) / 2
+End Function
+Function strSumTo(n As Double) As String
+If n = 2 * Int(n / 2) Then
+strSumTo = strMult(Trim(n / 2), Trim(n + 1))
+Else
+strSumTo = strMult(Trim(n), Trim((n + 1) / 2))
+End If
+End Function
+Function strSubtract(bb As String, aa As String) As String
+Dim carrytheone As Boolean, b As String, i As Integer, a As String: b = bb: a = aa
+If Len(b) > Len(a) Then a = String(Len(b) - Len(a), "0") & a
+If Len(a) > Len(b) Then b = String(Len(a) - Len(b), "0") & b
+carrytheone = False
+For i = Len(b) To 1 Step -1
+If Val(Mid(b, i, 1)) + carrytheone >= Val(Mid(a, i, 1)) Then
+strSubtract = (Val(Mid(b, i, 1)) + carrytheone - Val(Mid(a, i, 1))) & strSubtract
+carrytheone = False
+Else
+strSubtract = (10 + Val(Mid(b, i, 1)) + carrytheone - Val(Mid(a, i, 1))) & strSubtract
+carrytheone = True
+End If
+Next
+While Left(strSubtract, 1) = "0"
+strSubtract = Mid(strSubtract, 2)
+Wend
+End Function
+Function strSum(bb As String, aa As String) As String
+Dim b As String, a As String, i As Integer: b = bb: a = aa
+Dim carrytheone As Boolean
+If Len(b) > Len(a) Then a = String(Len(b) - Len(a), "0") & a
+If Len(a) > Len(b) Then b = String(Len(a) - Len(b), "0") & b
+carrytheone = False
+For i = Len(b) To 1 Step -1
+If Val(Mid(b, i, 1)) - carrytheone + Val(Mid(a, i, 1)) < 10 Then
+strSum = (Val(Mid(b, i, 1)) - carrytheone + Val(Mid(a, i, 1))) & strSum
+carrytheone = False
+Else
+strSum = (Val(Mid(b, i, 1)) - carrytheone + Val(Mid(a, i, 1)) - 10) & strSum
+carrytheone = True
+End If
+Next
+strSum = Abs(carrytheone) & strSum
+While Left(strSum, 1) = "0"
+strSum = Mid(strSum, 2)
+Wend
+End Function
+
+Function strMult(aa As String, bb As String) As String
+Dim i As Integer, j As Integer, carry As Integer, units As Integer, currentdigit As Integer, b As String, a As String: b = bb: a = aa
+Dim currentTotal As String, total As String
+currentTotal = ""
+For j = Len(b) To 1 Step -1
+carry = 0
+total = ""
+For i = Len(a) To 1 Step -1
+currentdigit = Mid(a, i, 1) * Mid(b, j, 1) + carry
+carry = Int(currentdigit / 10)
+units = currentdigit - carry * 10
+total = units & total
+Next
+If carry > 0 Then total = carry & total
+total = total & String(Len(b) - j, "0")
+currentTotal = strSum(currentTotal, total)
+Next
+strMult = currentTotal
+If Val(a & "0") * Val(b & "0") = 0 Then strMult = 0
+While Left(strMult, 1) = "0"
+strMult = Mid(strMult, 2)
+Wend
+End Function
+
+
+
+
+PROBLEM 248: FINDING 250,000TH NUMBER WHOS TOTIENT EQUALS 13!
+
+Const k = 49999
+Dim x(454, 6) As Integer, y(454) As Double, invTot(2500000, 40) As Double, tot As Double, s(10 ^ 6) As String, totalCases As Double, min As Double, max As Double
+Dim comp(1 To k) As Boolean, p(78498) As Long, sort(0 To 38000, 0 To 500) As Double
+
+Sub problem248() '23507044290 in 5.5346 s
+startTimer = Timer
+Call genInvTot
+Call primeGen
+Call gen2357Primes
+Call recurs
+Call find150000
+Debug.Print Timer - startTimer
+End
+End Sub
+Sub find150000()
+Sum = 0
+For i = 0 To 38000 'UBound(sort, 1)
+Sum = Sum + sort(i, 0)
+If Sum > 150000 Then
+index = 150000 - Sum + sort(i, 0)
+For j = 1 To sort(i, 0)
+For jj = j To sort(i, 0)
+If sort(i, j) > sort(i, jj) Then
+temp = sort(i, j)
+sort(i, j) = sort(i, jj)
+sort(i, jj) = temp
+End If
+Next
+Next
+Debug.Print sort(i, index)
+Exit Sub
+End If
+Next
+End Sub
+Sub gen2357Primes()
+t = 0
+For i13 = 0 To 1
+For i11 = 0 To 1
+For i7 = 0 To 1
+For i5 = 0 To 2
+For i3 = 0 To 5
+For i2 = 1 To 10
+current = 2 ^ i2 * 3 ^ i3 * 5 ^ i5 * 7 ^ i7 * 11 ^ i11 * 13 ^ i13 + 1
+If current <= 13 Then GoTo notPrime
+m = 1
+While p(m) <= Sqr(current)
+If p(m) * Int(current / p(m)) = current Then GoTo notPrime
+m = m + 1
+Wend
+t = t + 1
+y(t) = current
+x(t, 1) = i2
+x(t, 2) = i3
+x(t, 3) = i5
+x(t, 4) = i7
+x(t, 5) = i11
+x(t, 6) = i13
+notPrime:
+Next: Next: Next: Next: Next: Next
+End Sub
+Sub recurs(Optional index As Integer = 1, Optional i2 As Integer = 0, Optional i3 As Integer = 0, Optional i5 As Integer = 0, Optional i7 As Integer = 0, Optional i11 As Integer = 0, Optional i13 As Integer = 0, Optional st As String = "")
+Dim i As Integer
+For i = index To 453
+If i2 + x(i, 1) > 10 Or i3 + x(i, 2) > 5 Or i5 + x(i, 3) > 2 Or i7 * x(i, 4) = 1 Or i11 * x(i, 5) = 1 Or i13 * x(i, 6) = 1 Then
+Else
+Call recurs(i + 1, i2 + x(i, 1), i3 + x(i, 2), i5 + x(i, 3), i7 + x(i, 4), i11 + x(i, 5), i13 + x(i, 6), st & Trim(i) & ";")
+End If
+Next
+Dim ss() As String
+ss = Split(st, ";")
+Dim product As Double, productN As Double
+
+j2 = 10 - i2
+j3 = 5 - i3
+j5 = 2 - i5
+j7 = 1 - i7
+j11 = 1 - i11
+j13 = 1 - i13
+
+ssss = Trim(j2) & Trim(j3) & Trim(j5) & Trim(j7) & Trim(j11) & Trim(j13)
+n = 1
+For i = 0 To UBound(ss) - 1
+n = n * (y(Val(ss(i))))
+Next
+
+'If invTot(Val(ssss), 0) > 0 Then
+'totalCases = totalCases + invTot(Val(ssss), 0)
+'If n * invTot(Val(ssss), 1) < min Then min = n * invTot(Val(ssss), 1)
+'If n * invTot(Val(ssss), invTot(Val(ssss), 0)) > max Then max = n * invTot(Val(ssss), invTot(Val(ssss), 0))
+'End If
+'Exit Sub
+
+If invTot(Val(ssss), 0) > 0 Then
+For i = 1 To invTot(Val(ssss), 0)
+num = n * invTot(Val(ssss), i)
+part = Int(num / (10 ^ 7))
+sort(part, 0) = sort(part, 0) + 1
+sort(part, sort(part, 0)) = num
+Next
+End If
+End Sub
+
+Sub genInvTot()
+Dim pp(1 To 6) As Integer, lim(1 To 6) As Integer, i As Long
+Count = 0
+max = 0
+pp(1) = 2: pp(2) = 3: pp(3) = 5: pp(4) = 7: pp(5) = 11: pp(6) = 13:
+lim(1) = 11: lim(2) = 6: lim(3) = 3: lim(4) = 2: lim(5) = 2: lim(6) = 2:
+For i1 = 0 To lim(1)
+For i2 = 0 To lim(2)
+For i3 = 0 To lim(3)
+For i4 = 0 To lim(4)
+For i5 = 0 To lim(5)
+For i6 = 0 To lim(6)
+tot = 1
+If i1 > 0 Then tot = tot * 2 ^ (i1 - 1)
+If i2 > 0 Then tot = tot * 3 ^ (i2 - 1) * 2
+If i3 > 0 Then tot = tot * 5 ^ (i3 - 1) * 2 ^ 2
+If i4 > 0 Then tot = tot * 7 ^ (i4 - 1) * 2 * 3
+If i5 > 0 Then tot = tot * 11 ^ (i5 - 1) * 2 * 5
+If i6 > 0 Then tot = tot * 13 ^ (i6 - 1) * 2 ^ 2 * 3
+sss = ""
+origTot = tot
+For i = 1 To 6
+t = 0
+While tot / pp(i) = Int(tot / pp(i))
+tot = tot / pp(i)
+t = t + 1
+Wend
+sss = sss & Trim(t)
+Next
+
+invTot(Val(sss), 0) = invTot(Val(sss), 0) + 1
+n = pp(1) ^ i1 * pp(2) ^ i2 * pp(3) ^ i3 * pp(4) ^ i4 * pp(5) ^ i5 * pp(6) ^ i6
+invTot(Val(sss), invTot(Val(sss), 0)) = n
+'If sss = "000000" Then Stop
+
+Next: Next: Next: Next: Next: Next
+Count = 0
+For i = 1 To 1700000
+If invTot(i, 0) > 0 Then
+Count = Count + 1
+n = 1
+nI = i
+For j = 6 To 1 Step -1
+If j > 1 Then digit = nI - Int(nI / 10) * 10
+If j = 1 Then digit = nI
+nI = Int(nI / 10)
+n = n * pp(j) ^ digit
+Next
+For j = 1 To invTot(i, 0)
+For jj = j + 1 To invTot(i, 0)
+If invTot(i, j) > invTot(i, jj) Then
+maxmax = invTot(i, j)
+invTot(i, j) = invTot(i, jj)
+invTot(i, jj) = maxmax
+End If
+Next
+Next
+End If
+Next
+'End
+End Sub
+
+Sub primeGen()
+Dim upperN As Double, m As Long, n As Long
+startTimer = Timer
+For m = 2 To k
+If comp(m) Then GoTo skipFor:
+upperN = Int((k - m) / (1 + 2 * m))
+For n = 2 To upperN Step 3
+comp(2 * m * n + m + n) = True
+Next
+For n = 3 To upperN Step 3
+comp(2 * m * n + m + n) = True
+Next
+skipFor:
+Next
+
+p(0) = 2
+p(1) = 2
+p(2) = 3
+n = 0
+For m = 2 To k
+n = n + 1
+If n < 3 Then
+If Not comp(m) Then
+p(0) = p(0) + 1
+p(p(0)) = 2 * m + 1
+End If
+Else
+n = 0
+End If
+Next
+End Sub
